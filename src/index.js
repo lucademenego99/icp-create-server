@@ -18,13 +18,22 @@
 import fs from 'fs';
 import crc32wrapper from './crc32.js';
 import './stringAdditions.js';
+import axios from 'axios';
 import * as UTILS from './utils.js';
 
 // Define the new content for the index.html file
 let newContent = fs.readFileSync("index.html", 'utf8');
 
-// Read zip file
-let file = fs.readFileSync("./redbean.com");
+
+/**
+ * Get ZIP file
+ */
+
+// Read file stored locally 
+// let file = fs.readFileSync("redbean.com");
+
+// Get latest release
+let file = (await axios.get('https://unpkg.com/icp-bundle/dist/offline/redbean.com', {responseType: "arraybuffer"})).data;
 
 // Get the hex string
 let binaryZipString = file.toString('hex');

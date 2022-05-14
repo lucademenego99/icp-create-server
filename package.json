@@ -18,5 +18,8 @@
     "setup": "node src/index.js"
   },
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "axios": "^0.27.2"
+  }
 }
