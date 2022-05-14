@@ -1,0 +1,22 @@
+{
+  "name": "icp-create-server",
+  "private": false,
+  "version": "1.0.0",
+  "author": "Luca De Menego <lucademenego99@gmail.com>",
+  "description": "Starting from redbean.com, replace the content of the index.html file inside it with something else",
+  "main": "index.js",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lucademenego99/icp-create-server.git"
+  },
+  "homepage": "https://github.com/lucademenego99/icp-create-server#readme",
+  "bugs": {
+    "url": "https://github.com/lucademenego99/icp-create-server/issues"
+  },
+  "scripts": {
+    "setup": "node src/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {}
+}
