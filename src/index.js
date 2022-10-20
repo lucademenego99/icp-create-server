@@ -15,160 +15,145 @@
  * 
  */
 
-import fs from 'fs';
 import crc32wrapper from './crc32.js';
 import './stringAdditions.js';
 import axios from 'axios';
+import { Blob } from 'buffer';
 import * as UTILS from './utils.js';
 
-// Define the new content for the index.html file
-let newContent = fs.readFileSync("index.html", 'utf8');
+async function generateRedbeanFile(innerHTML) {
+    let file = (await axios.get('https://unpkg.com/icp-bundle@0.1.1/dist/base/redbean.com', { responseType: "arraybuffer" })).data;
+
+    // Get the hex string
+    let zipString = file.toString('hex');
+
+    /**
+     * Get start indices of the local file header
+     */
+
+    // Get the start of index.html file header
+    var startOfIndexFile = zipString.lastIndexOf('504b0304');
+    console.log("Start of index.html file header at " + startOfIndexFile);
+
+    // Get the start of the CRC-32 checksum of index.html
+    var startOfCRC32 = startOfIndexFile + 28;
+    console.log("Old CRC-32:", zipString.substring(startOfCRC32, startOfCRC32 + 8), "at", startOfCRC32);
+
+    // Get the start of the uncompressed size of index.html
+    var startOfUncompressedSize = startOfCRC32 + 8;
+    console.log("Old Uncompressed size:", zipString.substring(startOfUncompressedSize, startOfUncompressedSize + 8), "at", startOfUncompressedSize);
+
+    // Get the start of the compressed size of index.html
+    var startOfCompressedSize = startOfUncompressedSize + 8;
+    console.log("Old Compressed size:", zipString.substring(startOfCompressedSize, startOfCompressedSize + 8), "at", startOfCompressedSize);
+
+    // Get the start of the file content
+    var startOfFileContent = startOfCompressedSize + 92;
+
+    // Get size of file content from the compressed size
+    var sizeOfFileContent = UTILS.hexToDecimal(zipString.substring(startOfCompressedSize, startOfCompressedSize + 8));
+    console.log("Old File content size:", sizeOfFileContent);
 
 
-/**
- * Get ZIP file
- */
+    /**
+     * Find where to put the slides
+     * We will replace <!-- Content --> with them
+     */
 
-// Read file stored locally 
-let file = fs.readFileSync("redbean.com");
+    const bufferText = Buffer.from("<!-- Content -->", 'utf8').toString("hex");
 
-// Get latest release
-// let file = (await axios.get('https://unpkg.com/icp-bundle/dist/offline/redbean.com', { responseType: "arraybuffer" })).data;
+    // Get the start index of <!-- Content -->
+    const startOfReplacedString = zipString.indexOf(bufferText, startOfFileContent);
+    console.log("Start of replaced string:", startOfReplacedString);
 
-// Get the hex string
-let zipString = file.toString('hex');
+    // Get the end index of <!-- Content -->
+    const endOfReplacedString = startOfReplacedString + bufferText.length;
+    console.log("End of replaced string:", endOfReplacedString);
 
-
-/**
- * Get start indices of the local file header
- */
-
-// Get the start of index.html file header
-var startOfIndexFile = zipString.lastIndexOf('504b0304');
-console.log("Start of index.html file header at " + startOfIndexFile);
-
-// Get the start of the CRC-32 checksum of index.html
-var startOfCRC32 = startOfIndexFile + 28;
-console.log("Old CRC-32:", zipString.substring(startOfCRC32, startOfCRC32 + 8), "at", startOfCRC32);
-
-// Get the start of the uncompressed size of index.html
-var startOfUncompressedSize = startOfCRC32 + 8;
-console.log("Old Uncompressed size:", zipString.substring(startOfUncompressedSize, startOfUncompressedSize + 8), "at", startOfUncompressedSize);
-
-// Get the start of the compressed size of index.html
-var startOfCompressedSize = startOfUncompressedSize + 8;
-console.log("Old Compressed size:", zipString.substring(startOfCompressedSize, startOfCompressedSize + 8), "at", startOfCompressedSize);
-
-// Get the start of the file content
-var startOfFileContent = startOfCompressedSize + 92;
-
-// Get size of file content from the compressed size
-var sizeOfFileContent = UTILS.hexToDecimal(zipString.substring(startOfCompressedSize, startOfCompressedSize + 8));
-console.log("Old File content size:", sizeOfFileContent);
+    // Generate the hex for the new content
+    const newContentHex = Buffer.from((innerHTML), 'utf8').toString('hex');
 
 
-/**
- * Find where to put the slides
- * We will replace <!-- Content --> with them
- */
+    /**
+     * Set the new values for the header of index.html
+     */
 
-const bufferText = Buffer.from("<!-- Content -->", 'utf8').toString("hex");
+    // Relace the new content
+    zipString = zipString.replaceBetween(startOfReplacedString, endOfReplacedString, newContentHex);
 
-// Get the start index of <!-- Content -->
-const startOfReplacedString = zipString.indexOf(bufferText, startOfFileContent);
-console.log("Start of replaced string:", startOfReplacedString);
+    // Get the final size of the HTML file
+    const endOfFileContent = zipString.indexOf(Buffer.from("</html>", 'utf8').toString("hex"), startOfFileContent) + 14; // 14 is the length in bytes of </html>
+    const newContentSize = Buffer.byteLength(zipString.substring(startOfFileContent, endOfFileContent)) / 2;
+    const newContentSizeHex = UTILS.decimalToHex(newContentSize, 8);
 
-// Get the end index of <!-- Content -->
-const endOfReplacedString = startOfReplacedString + bufferText.length;
-console.log("End of replaced string:", endOfReplacedString);
+    // Calculate the CRC32 of the new content
+    const crc32OfString = UTILS.decimalToHex(crc32wrapper(UTILS.hexToAscii(zipString.substring(startOfFileContent, endOfFileContent))), 8);
 
-// Generate the hex for the new content
-const newContentHex = Buffer.from((newContent), 'utf8').toString('hex');
+    // Set new CRC-32, set correct content length
+    zipString = zipString.replaceBetween(startOfCRC32, startOfCRC32 + 8, crc32OfString);
+    zipString = zipString.replaceBetween(startOfUncompressedSize, startOfUncompressedSize + 8, newContentSizeHex);
+    zipString = zipString.replaceBetween(startOfCompressedSize, startOfCompressedSize + 8, newContentSizeHex);
+    console.log("NEW CRC-32:", zipString.substring(startOfCRC32, startOfCRC32 + 8), "at", startOfCRC32);
+    console.log("NEW SIZE:", zipString.substring(startOfUncompressedSize, startOfUncompressedSize + 8), "at", startOfUncompressedSize);
 
+    /**
+     * Get start indices of the central directory header
+     */
 
-/**
- * Set the new values for the header of index.html
- */
+    // Get the start of central directory header for index.html
+    const startOfCentralDirectoryHeader = zipString.lastIndexOf('504b0102');
 
-// Relace the new content
-zipString = zipString.replaceBetween(startOfReplacedString, endOfReplacedString, newContentHex);
+    // Get the start of the CRC-32 checksum in central directory header for index.html
+    const startOfCentralDirectoryCRC32 = startOfCentralDirectoryHeader + 32;
 
-// Get the final size of the HTML file
-const endOfFileContent = zipString.indexOf(Buffer.from("</html>", 'utf8').toString("hex"), startOfFileContent) + 14; // 14 is the length in bytes of </html>
-const newContentSize = Buffer.byteLength(zipString.substring(startOfFileContent, endOfFileContent)) / 2;
-const newContentSizeHex = UTILS.decimalToHex(newContentSize, 8);
+    // Get the start of the compressed size in central directory header for index.html
+    const startOfCentralDirectoryCompressedSize = startOfCentralDirectoryCRC32 + 8;
 
-// Calculate the CRC32 of the new content
-const crc32OfString = UTILS.decimalToHex(crc32wrapper(UTILS.hexToAscii(zipString.substring(startOfFileContent, endOfFileContent))), 8);
-
-// Set new CRC-32, set correct content length
-zipString = zipString.replaceBetween(startOfCRC32, startOfCRC32 + 8, crc32OfString);
-zipString = zipString.replaceBetween(startOfUncompressedSize, startOfUncompressedSize + 8, newContentSizeHex);
-zipString = zipString.replaceBetween(startOfCompressedSize, startOfCompressedSize + 8, newContentSizeHex);
-console.log("NEW CRC-32:", zipString.substring(startOfCRC32, startOfCRC32 + 8), "at", startOfCRC32);
-console.log("NEW SIZE:", zipString.substring(startOfUncompressedSize, startOfUncompressedSize + 8), "at", startOfUncompressedSize);
-
-/**
- * Get start indices of the central directory header
- */
-
-// Get the start of central directory header for index.html
-const startOfCentralDirectoryHeader = zipString.lastIndexOf('504b0102');
-
-// Get the start of the CRC-32 checksum in central directory header for index.html
-const startOfCentralDirectoryCRC32 = startOfCentralDirectoryHeader + 32;
-
-// Get the start of the compressed size in central directory header for index.html
-const startOfCentralDirectoryCompressedSize = startOfCentralDirectoryCRC32 + 8;
-
-// Get the start of the uncompressed size in central directory header for index.html
-const startOfCentralDirectoryUncompressedSize = startOfCentralDirectoryCompressedSize + 8;
+    // Get the start of the uncompressed size in central directory header for index.html
+    const startOfCentralDirectoryUncompressedSize = startOfCentralDirectoryCompressedSize + 8;
 
 
-/**
- * Set the new values for the central directory header of index.html
- */
+    /**
+     * Set the new values for the central directory header of index.html
+     */
 
-zipString = zipString.replaceBetween(startOfCentralDirectoryCRC32, startOfCentralDirectoryCRC32 + 8, crc32OfString);
-zipString = zipString.replaceBetween(startOfCentralDirectoryCompressedSize, startOfCentralDirectoryCompressedSize + 8, newContentSizeHex);
-zipString = zipString.replaceBetween(startOfCentralDirectoryUncompressedSize, startOfCentralDirectoryUncompressedSize + 8, newContentSizeHex);
-
-
-/**
- * Get start indices of the end of central directory
- */
-
-// Get the start of the end of central directory
-const startOfEndOfCentralDirectory = zipString.lastIndexOf('504b0506');
-
-// Get the start of the offset to start of the central directory
-const startOfOffsetToStartOfCentralDirectory = startOfEndOfCentralDirectory + 32;
+    zipString = zipString.replaceBetween(startOfCentralDirectoryCRC32, startOfCentralDirectoryCRC32 + 8, crc32OfString);
+    zipString = zipString.replaceBetween(startOfCentralDirectoryCompressedSize, startOfCentralDirectoryCompressedSize + 8, newContentSizeHex);
+    zipString = zipString.replaceBetween(startOfCentralDirectoryUncompressedSize, startOfCentralDirectoryUncompressedSize + 8, newContentSizeHex);
 
 
-/**
- * Compute the new offset to start of the central directory, based on the difference between the old and new content
- */
+    /**
+     * Get start indices of the end of central directory
+     */
 
-const startOffset = zipString.substring(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8).match(/.{2}/g).reverse().join("");
-let newOffset;
-if (newContentSize > sizeOfFileContent) {
-    newOffset = parseInt(startOffset, 16) + (newContentSize - sizeOfFileContent);
-} else {
-    newOffset = parseInt(startOffset, 16) - (sizeOfFileContent - newContentSize);
+    // Get the start of the end of central directory
+    const startOfEndOfCentralDirectory = zipString.lastIndexOf('504b0506');
+
+    // Get the start of the offset to start of the central directory
+    const startOfOffsetToStartOfCentralDirectory = startOfEndOfCentralDirectory + 32;
+
+
+    /**
+     * Compute the new offset to start of the central directory, based on the difference between the old and new content
+     */
+
+    const startOffset = zipString.substring(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8).match(/.{2}/g).reverse().join("");
+    let newOffset;
+    if (newContentSize > sizeOfFileContent) {
+        newOffset = parseInt(startOffset, 16) + (newContentSize - sizeOfFileContent);
+    } else {
+        newOffset = parseInt(startOffset, 16) - (sizeOfFileContent - newContentSize);
+    }
+
+    /**
+     * Set the new values for the end central directory
+     */
+
+    zipString = zipString.replaceBetween(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8, UTILS.decimalToHex(newOffset, 8));
+
+    return new Blob([zipString], { type: "application/zip" });
 }
 
-/**
- * Set the new values for the end central directory
- */
-
-zipString = zipString.replaceBetween(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8, UTILS.decimalToHex(newOffset, 8));
-
-
-/**
- * Generate the new file
- */
-
-if (!fs.existsSync("dist")) {
-    fs.mkdirSync("dist");
+export {
+    generateRedbeanFile
 }
-fs.createWriteStream("./dist/icp.com", 'hex').write(zipString);
