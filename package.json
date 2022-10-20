@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "Luca De Menego <lucademenego99@gmail.com>",
   "description": "Starting from redbean.com, replace the content of the index.html file inside it with something else",
-  "main": "exports.js",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/lucademenego99/icp-create-server.git"
@@ -15,13 +15,16 @@
   },
   "scripts": {
     "build": "babel src -d dist",
-    "setup": "node src/index.js"
+    "setup": "node src/test.js"
   },
   "license": "MIT",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "buffer": "^6.0.3"
+  },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
     "@babel/core": "^7.19.6",
-    "@babel/preset-env": "^7.19.4",
-    "axios": "^0.27.2"
+    "@babel/preset-env": "^7.19.4"
   }
 }

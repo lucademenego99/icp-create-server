@@ -18,14 +18,14 @@
 import crc32wrapper from './crc32.js';
 import './stringAdditions.js';
 import axios from 'axios';
-import { Blob } from 'buffer';
+import { Buffer } from 'buffer';
 import * as UTILS from './utils.js';
 
-async function generateRedbeanFile(innerHTML) {
-    let file = (await axios.get('https://unpkg.com/icp-bundle@0.1.1/dist/base/redbean.com', { responseType: "arraybuffer" })).data;
+async function generateRedbeanFile(innerHTML, zipString) {
+    // let file = (await axios.get('https://unpkg.com/icp-bundle@0.1.1/dist/base/redbean.com', { responseType: "arraybuffer" })).data;
 
-    // Get the hex string
-    let zipString = file.toString('hex');
+    // // Get the hex string
+    // let zipString = file.toString('hex');
 
     /**
      * Get start indices of the local file header
@@ -151,7 +151,7 @@ async function generateRedbeanFile(innerHTML) {
 
     zipString = zipString.replaceBetween(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8, UTILS.decimalToHex(newOffset, 8));
 
-    return new Blob([zipString], { type: "application/zip" });
+    return zipString;
 }
 
 export {
