@@ -151,7 +151,9 @@ async function generateRedbeanFile(innerHTML, zipString) {
 
     zipString = zipString.replaceBetween(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8, UTILS.decimalToHex(newOffset, 8));
 
-    return zipString;
+    return new Uint8Array(zipString.match(/[\da-f]{2}/gi).map(function (h) {
+        return parseInt(h, 16)
+    }));
 }
 
 export {
