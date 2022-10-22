@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "author": "Luca De Menego <lucademenego99@gmail.com>",
   "description": "Starting from redbean.com, replace the content of the index.html file inside it with something else",
-  "main": "index.js",
-  "type": "module",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/lucademenego99/icp-create-server.git"
@@ -15,11 +14,11 @@
     "url": "https://github.com/lucademenego99/icp-create-server/issues"
   },
   "scripts": {
-    "setup": "node src/index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "MIT",
-  "dependencies": {},
-  "devDependencies": {
-    "axios": "^0.27.2"
-  }
+  "dependencies": {
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {}
 }
