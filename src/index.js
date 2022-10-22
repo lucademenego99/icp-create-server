@@ -1,13 +1,13 @@
 /**
  * Here we want to change the content of the index.html file in redbean.com.
- * In particular, we will put inside it the slides, keeping everything else
+ * In particular, we will put inside it the slides, keeping everything else.
  * We take for granted that:
  * - the index.html file is already present inside the file redbean.com
  * - the index.html is the last file that was added in redbean.com, without compression
  * - the index.html file inside redbean.com has the comment <!-- Content --> where the slides should be put
  * 
  * This script replaces the content of the index.html file working directly on
- * the zip buffer
+ * the zip buffer.
  * 
  * References used to get the correct offsets:
  * - https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
@@ -17,16 +17,16 @@
 
 import crc32wrapper from './crc32.js';
 import './stringAdditions.js';
-import axios from 'axios';
 import { Buffer } from 'buffer';
 import * as UTILS from './utils.js';
 
+/**
+ * 
+ * @param {string} innerHTML HTML slides
+ * @param {string} zipString string representing the redbean.com file, in hex string format
+ * @returns 
+ */
 async function generateRedbeanFile(innerHTML, zipString) {
-    // let file = (await axios.get('https://unpkg.com/icp-bundle@0.1.1/dist/base/redbean.com', { responseType: "arraybuffer" })).data;
-
-    // // Get the hex string
-    // let zipString = file.toString('hex');
-
     /**
      * Get start indices of the local file header
      */
@@ -151,6 +151,9 @@ async function generateRedbeanFile(innerHTML, zipString) {
 
     zipString = zipString.replaceBetween(startOfOffsetToStartOfCentralDirectory, startOfOffsetToStartOfCentralDirectory + 8, UTILS.decimalToHex(newOffset, 8));
 
+    /**
+     * Return a Buffer with the new content
+     */
     return new Uint8Array(zipString.match(/[\da-f]{2}/gi).map(function (h) {
         return parseInt(h, 16)
     }));
